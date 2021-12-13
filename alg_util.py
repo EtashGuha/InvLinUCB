@@ -1,6 +1,7 @@
 import random
 import numpy as np
-        
+import matplotlib.pyplot as plt
+
 def train_alg_UCB(alg, T, theta, oracle):
     for time in range(T):
         action = alg.compute()

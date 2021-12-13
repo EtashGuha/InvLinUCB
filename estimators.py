@@ -106,7 +106,7 @@ def estimate_ucb_means_lp(alg):
 def calc_Vs(alg):
     Vs = []
     Vs.append(alg.lamda * np.identity(alg.dim))
-    for t in range(T):
+    for t in range(alg.T):
         Vs.append(Vs[-1] + (alg.actions[t].T * alg.actions[t]))
     return(Vs)
 

@@ -12,9 +12,9 @@ def normalize_subopt(means):
     best_value = max(means)
     return best_value - means
 
-def test_Baseline1(theta, action_set, T=1000):
+def test_Baseline1(theta, action_set, sigma, T=1000):
     dim = theta.shape[-1]
-    oracle = Oracle(theta)
+    oracle = Oracle(theta, sigma=sigma)
     alg = UCB(action_set, T=T, dim=dim)
     train_alg_UCB(alg, T, theta, oracle)
     
@@ -24,9 +24,9 @@ def test_Baseline1(theta, action_set, T=1000):
     
     return mean_squared_error(normalize_subopt(alg.sample_means), estimate_sample_means), t2 - t1
     
-def test_Baseline2(theta, action_set, T=1000):
+def test_Baseline2(theta, action_set, sigma, T=1000):
     dim = theta.shape[-1]
-    oracle = Oracle(theta)
+    oracle = Oracle(theta, sigma=sigma)
     alg = UCB(action_set, T=T, dim=dim)
     train_alg_UCB(alg, T, theta, oracle)
     
@@ -36,9 +36,9 @@ def test_Baseline2(theta, action_set, T=1000):
     return mean_squared_error(normalize_subopt(alg.sample_means), estimate_sample_means), t2 - t1
 
 
-def test_UCB(theta, action_set, T=1000):
+def test_UCB(theta, action_set, sigma, T=1000):
     dim = theta.shape[-1]
-    oracle = Oracle(theta)
+    oracle = Oracle(theta, sigma=sigma)
     alg = UCB(action_set, T=T, dim=dim)
     train_alg_UCB(alg, T, theta, oracle)
     
@@ -47,9 +47,9 @@ def test_UCB(theta, action_set, T=1000):
     t2 = time.time()
     return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1
     
-def test_LinUCB(theta, action_set, T=1000):
+def test_LinUCB(theta, action_set, sigma, T=1000):
     
-    oracle = Oracle(theta)
+    oracle = Oracle(theta, sigma=sigma)
     dim = theta.shape[-1]
     alg = LinUCB(action_set, dim=dim, T=T)
     

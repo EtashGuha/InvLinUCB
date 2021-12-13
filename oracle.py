@@ -7,7 +7,7 @@ class Oracle:
         self.upper = upper
         self.lower = lower
         self.sigma = sigma
-        
+
     def compute_reward(self, action):
         mu = np.inner(action, self.theta)
         X = truncnorm((self.lower - mu) / self.sigma, (self.upper - mu) / self.sigma, loc=mu, scale=self.sigma)

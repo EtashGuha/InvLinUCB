@@ -4,7 +4,8 @@ from alg_util import generate_k_dim_vector, generate_random_vec
 import numpy as np
 from tqdm import tqdm
 import multiprocessing as mp
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def calc_errors_and_times(theta, action_set, T, num_arms, sigma):
     try:
@@ -61,8 +62,6 @@ def test(name, save=False):
             baseline_2_times[T][num_arms] = []
 
             for _ in range(num_epochs):
-                # theta = np.matrix(generate_random_vec(dim = 2))
-                # action_set = np.matrix([generate_random_vec(dim = 2) for _ in range(num_arms)])
                 vals.append(pool.apply_async(func=calc_errors_and_times, args=(theta, action_set, T, num_arms, sigma)))
     #             calc_errors_and_times(theta, action_set, T, num_arms)
 

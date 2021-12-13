@@ -8,14 +8,11 @@ import warnings
 warnings.filterwarnings("ignore")
 
 def calc_errors_and_times(theta, action_set, T, num_arms, sigma):
-    try:
-        ucb_error, ucb_time = test_UCB(theta, action_set, sigma, T=T)
-        lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T)
-        baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
-        baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
-        return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time
-    except:
-        pass
+    ucb_error, ucb_time = test_UCB(theta, action_set, sigma, T=T)
+    lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T)
+    baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
+    baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
+    return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time
 
 
 def test(name, save=False):

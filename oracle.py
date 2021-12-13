@@ -14,6 +14,5 @@ class Oracle:
         return X.rvs(1)[0]
 
 def calc_pseudoregret(theta, actions):
-    diff = theta - np.max(theta)
     new_actions = np.stack(actions, axis=0)
     return -np.sum(np.dot(new_actions, theta))

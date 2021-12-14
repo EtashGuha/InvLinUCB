@@ -3,25 +3,16 @@ from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot(errors, times, title, Ts, NumArmss, remove_outliers=False):
+def plot(errors, title, name, folder, remove_outliers=False):
     plt.clf()
     error_data = []
-    time_data = []
-    for T in Ts:
-        for num_arms in NumArmss:
+    for T in errors.keys():
+        for num_arms in errors[T].keys():
             for ele in errors[T][num_arms]:
-                if not remove_outliers or ele < 20:
                     error_data.append((T, num_arms, ele))
                     
-    for T in Ts:
-        for num_arms in NumArmss:
-            for ele in times[T][num_arms]:
-                if not remove_outliers or ele < 20:
-                    time_data.append((T, num_arms, ele))
-                    
     x, y, z = zip(*error_data)
-    _, _, times = zip(*time_data)
-    print("Mean Error: {}, Mean Time: {}".format(np.mean(z), np.mean(times)))
+    
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     ax.set_title(title)
@@ -29,8 +20,7 @@ def plot(errors, times, title, Ts, NumArmss, remove_outliers=False):
     ax.set_xlabel("T")
     ax.set_ylabel("Num Arms")
     ax.set_zlabel("MSE")
-    plt.savefig("linucb.png")
-    plt.show()
+    plt.savefig("{}/{}.png".format(folder, name))
 
 def plot_many(errors_list, names, title,  Ts, NumArmss, remove_outliers=False):
     plt.clf()

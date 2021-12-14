@@ -57,6 +57,9 @@ def test_LinUCB(theta, action_set, sigma, T=1000):
     t1 = time.time()
     true_means = normalize_subopt(action_set @ alg.hat_theta)
     theta_estimate = estimate_linucb_means_lp(alg)
+    breakpoint()
+    if theta_estimate is None:
+        return None, None
     estimate_means = normalize_subopt(action_set @ theta_estimate)
     t2 = time.time()
     return mean_squared_error(true_means, estimate_means), t2 - t1

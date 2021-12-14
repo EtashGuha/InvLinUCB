@@ -1,4 +1,4 @@
-from dataset_util import load_battery_dataset
+from dataset_util import load_battery_dataset, find_mean
 from test_util import test_Baseline1, test_Baseline2, test_LinUCB, test_UCB
 from alg_util import generate_k_dim_vector, generate_random_vec
 import numpy as np
@@ -6,17 +6,41 @@ from tqdm import tqdm
 import multiprocessing as mp
 import warnings
 warnings.filterwarnings("ignore")
+from sampler import SyntheticSampler, BatterySampler
+import os
+from plot_util import plot
+import pandas as pd
+
+from datetime import datetime
 
 def calc_errors_and_times(theta, action_set, T, num_arms, sigma):
     ucb_error, ucb_time = test_UCB(theta, action_set, sigma, T=T)
-    lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T)
-    baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
-    baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
+    # lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T)
+    # baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
+    # baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
+    # if lin_ucb_error is None:
+    #     return None
+    lin_ucb_error = -1 
+    lin_ucb_time = -1
+    baseline_1_error = -1
+    baseline_1_time = -1
+    baseline_2_error = -1
+    baseline_2_time = -1
     return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time
 
+def test_battery(name, save=False):
+    sampler = BatterySampler()
+    theta, action_set, sigma = sampler.sample()
+    
+    print(calc_errors_and_times(theta, action_set, 1000, len(action_set), sigma))
 
-def test(name, save=False):
-    Ts =  [128, 256, 512, 1024, 2048]
+def test_synthetic(name, save=False):
+    if not os.path.exists("data/all.csv"):
+        df = pd.DataFrame()
+    else:
+        df = pd.read_csv("data/all.csv")
+
+    Ts =  [512, 768, 1024, 1532, 2048]
     NumArmss = [2, 8, 16, 32, 64, 128]
     num_epochs = 10
 
@@ -31,10 +55,8 @@ def test(name, save=False):
 
     vals = []
     num_skipped = 0
-    # sigma = 0.2
 
-    pool = mp.Pool(4)
-    action_set, theta, sigma = load_battery_dataset()
+    pool = mp.Pool(10)
     for T in Ts:
 
         ucb_errors[T] = {}
@@ -57,10 +79,12 @@ def test(name, save=False):
             linucb_times[T][num_arms] = []
             baseline_1_times[T][num_arms] = []
             baseline_2_times[T][num_arms] = []
-
+            sampler = SyntheticSampler(num_arms)
             for _ in range(num_epochs):
+                theta, action_set, sigma = sampler.sample()
                 vals.append(pool.apply_async(func=calc_errors_and_times, args=(theta, action_set, T, num_arms, sigma)))
-    #             calc_errors_and_times(theta, action_set, T, num_arms)
+                # calc_errors_and_times(theta, action_set, T, num_arms, sigma)
+
 
 
     for val in tqdm(vals):
@@ -78,8 +102,39 @@ def test(name, save=False):
         ucb_times[T][num_arms].append(ucb_time)
         baseline_1_times[T][num_arms].append(baseline_1_time)
         baseline_2_times[T][num_arms].append(baseline_2_time)
+    
+    data_dict = {}
 
-    print(num_skipped)
+    now = datetime.now()
+    folder_name = "images/{}_{}".format(name, now.strftime("%m_%d_%Y_%H_%M_%S"))
+    os.mkdir("images/{}_{}".format(name, now.strftime("%m_%d_%Y_%H_%M_%S")))
+
+    data_dict["name"] = name
+    data_dict["date"] = now.strftime("%m_%d_%Y_%H_%M_%S")
+    data_dict["LinUCB Error"] = find_mean(linucb_errors)
+    data_dict["UCB Error"] = find_mean(ucb_errors)
+    data_dict["Baseline 1 Error"] = find_mean(baseline_1_errors)
+    data_dict["Baseline 2 Error"] = find_mean(baseline_2_errors)
+
+    data_dict["LinUCB Time"] = find_mean(linucb_times)
+    data_dict["UCB Time"] = find_mean(ucb_times)
+    data_dict["Baseline 1 Time"] = find_mean(baseline_1_times)
+    data_dict["Baselien 2 Time"] = find_mean(baseline_2_times)
+
+    df = df.append(data_dict, ignore_index=True)
+    df.to_csv("data/all.csv")
+
+    plot(linucb_errors, "LinUCB Error", "linucb_error.png", folder_name)
+    plot(ucb_errors, "UCB Error", "ucb_error.png", folder_name)
+    plot(baseline_1_errors, "Baseline 1 Error", "baseline_1_error.png", folder_name)
+    plot(baseline_2_errors, "Baseline 2 Error", "baseline_2_error.png", folder_name)
+    plot(linucb_times, "LinUCB time", "linucb_time.png", folder_name)
+    plot(ucb_times, "UCB time", "ucb_time.png", folder_name)
+    plot(baseline_1_times, "Baseline 1 time", "baseline_1_time.png", folder_name)
+    plot(baseline_2_times, "Baseline 2 time", "baseline_2_time.png", folder_name)
+
 
 if __name__ == '__main__':
-    test('test')
+    sampler = SyntheticSampler
+    # test_battery("test")
+    test_synthetic("UCB Debug with new relative constraint")

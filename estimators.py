@@ -37,7 +37,11 @@ def Baseline2(alg):
     sample_means = []
     for idx, tau in enumerate(taus):
         if idx is not optimal_arm:
-            sample_means.append(UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]))
+            try:
+                sample_means.append(UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]))
+            except:
+                print(alg.action_idxs)
+                print(num_pulls)
         else:
             sample_means.append(0)
     
@@ -80,7 +84,7 @@ def estimate_ucb_means_lp(alg):
 
     expr.addTerms([1.0] * len(list_of_all_vars), list_of_all_vars)
 
-#     m.setObjective(expr, gp.GRB.MAXIMIZE)
+    # m.setObjective(expr, gp.GRB.MAXIMIZE)
 
 
 
@@ -93,8 +97,10 @@ def estimate_ucb_means_lp(alg):
             m.addConstr(all_vars[t][i] >= 0)
             m.addConstr(all_vars[t][i] <= 1)
 
-
-
+    for t, ele in enumerate(alg.action_idxs):
+        if t - 1 >= 0:
+            m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] <= 1)
+            m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] >= 0)
     m.optimize()
     lp_vals = []
     for i in range(len(alg.arm)):
@@ -112,17 +118,17 @@ def calc_Vs(alg):
 
 def get_orthogonal_matrix(vec):
     first = np.identity(len(vec) - 1)
-    second = -1 * vec[1:] / vec[0]
-
-    others = np.concatenate((second, first),axis=0)
-
+    if vec[0].item() == 0:
+        second = -1 * vec[1:]
+    else:
+        second = -1 * vec[1:] / vec[0]
+    others = np.concatenate((second.T, first),axis=0)
     banana = others @ (others.T @ others) @ others.T
-
     return banana
 
 def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5):
     m = gp.Model()
-    m.Params.LogToConsole = 0
+    # m.Params.LogToConsole = 0
     all_vars = {}
     T = alg.T
 
@@ -172,11 +178,16 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5):
         
         for curr_dim in range(first_coeff.shape[0]):
             firstexpr = gp.LinExpr()
-            firstexpr.addTerms(first_coeff[curr_dim], all_vars[t+1])
-            firstexpr.addTerms(-1 * second_coeff[curr_dim], all_vars[t])
-            m.addConstr(firstexpr >= -1 * tolerance)
-            m.addConstr(firstexpr <= tolerance)
+
+            if np.any(first_coeff[curr_dim]):
+                firstexpr.addTerms(first_coeff[curr_dim], all_vars[t+1])
+            if np.any(second_coeff[curr_dim]):
+                firstexpr.addTerms(-1 * second_coeff[curr_dim], all_vars[t])
             
+            if np.any(first_coeff[curr_dim]) or np.any(second_coeff[curr_dim]):
+                m.addConstr(firstexpr >= -1 * tolerance)
+                m.addConstr(firstexpr <= tolerance)
+
         
     for i in range(alg.dim):
         m.addConstr(all_vars[0][i] == 0)
@@ -191,10 +202,14 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5):
 
     m.optimize()
 
+    
     final_Vinv = np.linalg.inv(Vs[-1])
-    final_y = np.matrix([ele.X for ele in all_vars[alg.T - 1]]).T
+    try:
+        final_y = np.matrix([ele.X for ele in all_vars[alg.T - 1]]).T
+    except:
+        return None
     
-    
+    breakpoint()
     theta_estimate = np.linalg.inv(Vs[-1]) @ np.matrix(final_y)
     
     if normalize:

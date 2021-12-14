@@ -11,3 +11,12 @@ def load_battery_dataset() -> Tuple[np.matrix, np.matrix, float]:
     sigma = (dataset[0, 1] / max_mean)
     theta = np.matrix(dataset[:, 0]) / max_mean
     return action_set, theta, sigma
+
+def find_mean(dic):
+    all_data = []
+    for T in dic.keys():
+        for num_arms in dic[T].keys():
+            for ele in dic[T][num_arms]:
+                    all_data.append(ele)
+    return np.mean(all_data)
+                    

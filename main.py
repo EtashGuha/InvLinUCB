@@ -10,22 +10,24 @@ from sampler import SyntheticSampler, BatterySampler
 import os
 from plot_util import plot
 import pandas as pd
-
+import argparse
 from datetime import datetime
 
-def calc_errors_and_times(theta, action_set, T, num_arms, sigma):
-    ucb_error, ucb_time = test_UCB(theta, action_set, sigma, T=T)
-    # lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T)
+def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
+    # ucb_error, ucb_time = test_UCB(theta, action_set, sigma, T=T, timelimit=timelimit)
+    lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T, timelimit=timelimit)
     # baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
     # baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
-    # if lin_ucb_error is None:
-    #     return None
-    lin_ucb_error = -1 
-    lin_ucb_time = -1
+    if lin_ucb_error is None:
+        return None
+
+    ucb_error = -1
+    ucb_time = -1
     baseline_1_error = -1
     baseline_1_time = -1
     baseline_2_error = -1
     baseline_2_time = -1
+    
     return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time
 
 def test_battery(name, save=False):
@@ -34,14 +36,14 @@ def test_battery(name, save=False):
     
     print(calc_errors_and_times(theta, action_set, 1000, len(action_set), sigma))
 
-def test_synthetic(name, save=False):
+def test_synthetic(name, dim, timelimit=None, save=False):
     if not os.path.exists("data/all.csv"):
         df = pd.DataFrame()
     else:
         df = pd.read_csv("data/all.csv")
 
-    Ts =  [512, 768, 1024, 1532, 2048]
-    NumArmss = [2, 8, 16, 32, 64, 128]
+    Ts =  [128, 256, 512, 768, 1024]
+    NumArmss = [2, 4, 8, 16, 32, 64]
     num_epochs = 10
 
     ucb_errors = {}
@@ -79,10 +81,10 @@ def test_synthetic(name, save=False):
             linucb_times[T][num_arms] = []
             baseline_1_times[T][num_arms] = []
             baseline_2_times[T][num_arms] = []
-            sampler = SyntheticSampler(num_arms)
+            sampler = SyntheticSampler(num_arms, dim=dim)
             for _ in range(num_epochs):
                 theta, action_set, sigma = sampler.sample()
-                vals.append(pool.apply_async(func=calc_errors_and_times, args=(theta, action_set, T, num_arms, sigma)))
+                vals.append(pool.apply_async(func=calc_errors_and_times, args=(theta, action_set, T, num_arms, sigma, timelimit)))
                 # calc_errors_and_times(theta, action_set, T, num_arms, sigma)
 
 
@@ -115,12 +117,12 @@ def test_synthetic(name, save=False):
     data_dict["UCB Error"] = find_mean(ucb_errors)
     data_dict["Baseline 1 Error"] = find_mean(baseline_1_errors)
     data_dict["Baseline 2 Error"] = find_mean(baseline_2_errors)
-
+    data_dict["Dimension"] = dim
     data_dict["LinUCB Time"] = find_mean(linucb_times)
     data_dict["UCB Time"] = find_mean(ucb_times)
     data_dict["Baseline 1 Time"] = find_mean(baseline_1_times)
     data_dict["Baselien 2 Time"] = find_mean(baseline_2_times)
-
+    data_dict["Type"] = "Synthetic"
     df = df.append(data_dict, ignore_index=True)
     df.to_csv("data/all.csv")
 
@@ -135,6 +137,15 @@ def test_synthetic(name, save=False):
 
 
 if __name__ == '__main__':
-    sampler = SyntheticSampler
-    # test_battery("test")
-    test_synthetic("UCB Debug with new relative constraint")
+    parser = argparse.ArgumentParser(description='Process some integers.')
+
+    parser.add_argument('--sample', choices=['synthetic', 'battery'],
+                    help='sample type')
+    parser.add_argument("--dim", type=int, help="Dimension")
+    parser.add_argument("--name", type=str, help="Name of experiment")
+    parser.add_argument("--timelimit", type=int, default=None, help="Name of experiment")
+    args = parser.parse_args()
+    if args.sample == "synthetic":
+        test_synthetic(name=args.name, dim=args.dim, timelimit=args.timelimit)
+    else:
+        test_battery(name=args.name)

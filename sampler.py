@@ -9,8 +9,8 @@ class SyntheticSampler():
         self.num_arms = num_arms
 
     def sample(self):
-        theta = np.matrix(generate_random_vec(dim = 2))
-        action_set = np.matrix([generate_random_vec(dim = 2) for _ in range(self.num_arms)])
+        theta = np.matrix(generate_random_vec(dim = self.dim))
+        action_set = np.matrix([generate_random_vec(dim = self.dim) for _ in range(self.num_arms)])
         return theta, action_set, self.sigma
 
 class BatterySampler():

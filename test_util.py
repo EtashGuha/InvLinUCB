@@ -36,18 +36,18 @@ def test_Baseline2(theta, action_set, sigma, T=1000):
     return mean_squared_error(normalize_subopt(alg.sample_means), estimate_sample_means), t2 - t1
 
 
-def test_UCB(theta, action_set, sigma, T=1000):
+def test_UCB(theta, action_set, sigma, T=1000, timelimit=None):
     dim = theta.shape[-1]
     oracle = Oracle(theta, sigma=sigma)
     alg = UCB(action_set, T=T, dim=dim)
     train_alg_UCB(alg, T, theta, oracle)
     
     t1 = time.time()
-    lp_vals = normalize_subopt(estimate_ucb_means_lp(alg))
+    lp_vals = normalize_subopt(estimate_ucb_means_lp(alg, timelimit=timelimit))
     t2 = time.time()
     return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1
     
-def test_LinUCB(theta, action_set, sigma, T=1000):
+def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
     
     oracle = Oracle(theta, sigma=sigma)
     dim = theta.shape[-1]
@@ -56,10 +56,14 @@ def test_LinUCB(theta, action_set, sigma, T=1000):
     train_alg_UCB(alg, T, theta, oracle)
     t1 = time.time()
     true_means = normalize_subopt(action_set @ alg.hat_theta)
-    theta_estimate = estimate_linucb_means_lp(alg)
-    breakpoint()
+    theta_estimate = estimate_linucb_means_lp(alg, timelimit=timelimit)
     if theta_estimate is None:
         return None, None
     estimate_means = normalize_subopt(action_set @ theta_estimate)
     t2 = time.time()
-    return mean_squared_error(true_means, estimate_means), t2 - t1
+    try:
+        return mean_squared_error(true_means, estimate_means), t2 - t1
+    except:
+        print(theta_estimate)
+        print(true_means)
+        print(estimate_means)

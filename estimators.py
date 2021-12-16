@@ -47,9 +47,11 @@ def Baseline2(alg):
     
     return np.asarray(sample_means) * -1
 
-def estimate_ucb_means_lp(alg):
+def estimate_ucb_means_lp(alg, timelimit=None):
     m = gp.Model()
     m.Params.LogToConsole = 0
+    if timelimit is not None:
+        m.setParam('TimeLimit', timelimit)
     all_vars = {}
     num_pulls = {}
     T = alg.T
@@ -126,9 +128,11 @@ def get_orthogonal_matrix(vec):
     banana = others @ (others.T @ others) @ others.T
     return banana
 
-def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5):
+def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None):
     m = gp.Model()
-    # m.Params.LogToConsole = 0
+    m.Params.LogToConsole = 0
+    if timelimit is not None:
+        m.setParam('TimeLimit', timelimit)
     all_vars = {}
     T = alg.T
 
@@ -209,10 +213,10 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5):
     except:
         return None
     
-    breakpoint()
     theta_estimate = np.linalg.inv(Vs[-1]) @ np.matrix(final_y)
     
     if normalize:
-        theta_estimate = theta_estimate/np.linalg.norm(theta_estimate)
-        
+        if np.linalg.norm(theta_estimate) != 0:
+            theta_estimate = theta_estimate/np.linalg.norm(theta_estimate)
+    
     return theta_estimate

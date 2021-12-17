@@ -123,6 +123,7 @@ def test_synthetic(name, dim, timelimit=None, save=False):
     data_dict["Baseline 1 Time"] = find_mean(baseline_1_times)
     data_dict["Baselien 2 Time"] = find_mean(baseline_2_times)
     data_dict["Type"] = "Synthetic"
+    data_dict["Time Limit Reached"] = num_skipped
     df = df.append(data_dict, ignore_index=True)
     df.to_csv("data/all.csv")
 

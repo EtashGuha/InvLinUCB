@@ -36,7 +36,8 @@ def test_battery(name, save=False):
     
     print(calc_errors_and_times(theta, action_set, 1000, len(action_set), sigma))
 
-def test_synthetic(name, dim, timelimit=None, save=False):
+def test_synthetic(name, dim, ord, timelimit=None, save=False):
+    ord = float(ord)
     if not os.path.exists("data/all.csv"):
         df = pd.DataFrame()
     else:
@@ -81,7 +82,7 @@ def test_synthetic(name, dim, timelimit=None, save=False):
             linucb_times[T][num_arms] = []
             baseline_1_times[T][num_arms] = []
             baseline_2_times[T][num_arms] = []
-            sampler = SyntheticSampler(num_arms, dim=dim)
+            sampler = SyntheticSampler(num_arms, dim=dim, ord=ord)
             for _ in range(num_epochs):
                 theta, action_set, sigma = sampler.sample()
                 vals.append(pool.apply_async(func=calc_errors_and_times, args=(theta, action_set, T, num_arms, sigma, timelimit)))
@@ -145,8 +146,9 @@ if __name__ == '__main__':
     parser.add_argument("--dim", type=int, help="Dimension")
     parser.add_argument("--name", type=str, help="Name of experiment")
     parser.add_argument("--timelimit", type=int, default=None, help="Name of experiment")
+    parser.add_argument("--ord", choices=['1', '2', 'inf'], help='Type of norm')
     args = parser.parse_args()
     if args.sample == "synthetic":
-        test_synthetic(name=args.name, dim=args.dim, timelimit=args.timelimit)
+        test_synthetic(name=args.name, dim=args.dim, ord=args.ord, timelimit=args.timelimit)
     else:
         test_battery(name=args.name)

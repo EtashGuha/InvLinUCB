@@ -15,3 +15,5 @@
 13,Ablation on LinUCB without directinal constraints again again,12_17_2021_13_08_54,0.0083482004666077,-1.0,-1.0,-1.0,6.790961333910624,-1.0,-1.0,-1.0,Synthetic,8.0,0.0
 14,Ablation on LinUCB without directinal constraints and without opt constraint,12_17_2021_13_22_35,0.0144190920081338,-1.0,-1.0,-1.0,1.7843643522262571,-1.0,-1.0,-1.0,Synthetic,8.0,0.0
 15,Ablation on LinUCB without directinal constraints and without bounds on y,12_17_2021_13_28_33,0.03293938265995166,-1.0,-1.0,-1.0,2.1806424125035604,-1.0,-1.0,-1.0,Synthetic,8.0,0.0
+16,L1Ball,12_18_2021_23_24_42,0.0168011300757689,-1.0,-1.0,-1.0,7.708002709207081,-1.0,-1.0,-1.0,Synthetic,2.0,6.0
+17,LinfBall,12_18_2021_23_30_53,0.014846863524550271,-1.0,-1.0,-1.0,7.469659517108391,-1.0,-1.0,-1.0,Synthetic,2.0,3.0

@@ -14,9 +14,19 @@ def generate_k_dim_vector(dim=2):
     vec[full_index] = np.sign(vec[full_index]) * 1
     return vec
 
-def generate_random_vec(dim=2, mag=1):
+def generate_random_vec(dim=2, mag=1, ord=2):
     vec = np.random.random(int(dim))
-    vec = vec/np.linalg.norm(vec)*mag
+    vec = vec/np.linalg.norm(vec, ord=2)*mag
+    return vec
+
+def generate_random_l1_vec(dim=2, mag=1) -> np.ndarray:
+    vec = np.random.random(int(dim))
+    vec = vec/np.linalg.norm(vec, ord=1)*mag
+    return vec
+
+def generate_random_linf_vec(dim=2, mag=1) -> np.ndarray:
+    vec = np.random.random(int(dim))
+    vec = vec/np.linalg.norm(vec, ord=np.inf)*mag
     return vec
 
 def plot_vectors(theta, actions):

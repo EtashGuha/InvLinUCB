@@ -188,9 +188,9 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None
             if np.any(second_coeff[curr_dim]):
                 firstexpr.addTerms(-1 * second_coeff[curr_dim], all_vars[t])
             
-            if np.any(first_coeff[curr_dim]) or np.any(second_coeff[curr_dim]):
-                m.addConstr(firstexpr >= -1 * tolerance)
-                m.addConstr(firstexpr <= tolerance)
+            # if np.any(first_coeff[curr_dim]) or np.any(second_coeff[curr_dim]):
+            #     m.addConstr(firstexpr >= -1 * tolerance)
+            #     m.addConstr(firstexpr <= tolerance)
 
         
     for i in range(alg.dim):

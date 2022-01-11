@@ -47,6 +47,64 @@ def Baseline2(alg):
     
     return np.asarray(sample_means) * -1
 
+def Baseline2_LP(alg, timelimit=None):
+    taus = [0] * alg.arm.shape[0]
+    num_pulls = {}
+    for t, action in enumerate(alg.action_idxs):
+        taus[action] = t
+
+    for i in range(len(alg.arm)):
+        num_pulls[i] = []
+
+    for t in range(alg.T):
+        for key in num_pulls.keys():
+            if alg.action_idxs[t] != key:
+                if t != 0:
+                    num_pulls[key].append(num_pulls[key][ - 1])
+                else:
+                    num_pulls[key].append(0)
+            else:
+                if t != 0:
+                    num_pulls[key].append(num_pulls[key][ - 1] + 1)
+                else:
+                    num_pulls[key].append(1)
+
+    optimal_arm = None
+    most_pulls = -1
+    for i in range(len(alg.arm)):
+        if num_pulls[i][alg.T - 1] > most_pulls:
+            most_pulls = num_pulls[i][alg.T - 1] 
+            optimal_arm = i
+
+    m = gp.Model()
+    m.Params.LogToConsole = 0
+    if timelimit is not None:
+        m.setParam('TimeLimit', timelimit)
+    all_vars = {}
+    for idx, arm in enumerate(alg.arm):
+        all_vars[idx] = m.addVar(name="u_{}".format(idx))
+
+    for idx, tau in enumerate(taus):
+        try:
+            if idx is not optimal_arm:
+                m.addConstr(all_vars[idx] - all_vars[optimal_arm] >= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau-1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau-1]))
+                m.addConstr(all_vars[idx] - all_vars[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]))
+        except:
+            breakpoint()
+            print(num_pulls[optimal_arm][tau-1])
+            print(num_pulls[optimal_arm][tau])
+
+            print(num_pulls[idx][tau-1])
+            print(num_pulls[idx][tau])
+
+    m.optimize()
+    lp_vals = []
+
+    for i in range(len(alg.arm)):
+        lp_vals.append(all_vars[i].X)
+    
+    return lp_vals
+
 def estimate_ucb_means_lp(alg, timelimit=None):
     m = gp.Model()
     m.Params.LogToConsole = 0
@@ -177,6 +235,7 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None
         V_tplus1_inv = np.linalg.pinv(V_tplus1)
         
         orthogonal_projection = get_orthogonal_matrix(V_t_inv @ a_t.T)
+        orthogonal_projection = orthogonal_projection/np.max(orthogonal_projection)
         first_coeff = np.asarray(orthogonal_projection @ V_tplus1_inv)
         second_coeff = np.asarray(orthogonal_projection @ V_t_inv)
         
@@ -187,12 +246,12 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None
                 firstexpr.addTerms(first_coeff[curr_dim], all_vars[t+1])
             if np.any(second_coeff[curr_dim]):
                 firstexpr.addTerms(-1 * second_coeff[curr_dim], all_vars[t])
-            
-            # if np.any(first_coeff[curr_dim]) or np.any(second_coeff[curr_dim]):
-            #     m.addConstr(firstexpr >= -1 * tolerance)
-            #     m.addConstr(firstexpr <= tolerance)
+            # breakpoint()
+            if np.any(first_coeff[curr_dim]) or np.any(second_coeff[curr_dim]):
+                m.addConstr(firstexpr >= -1 * tolerance)
+                m.addConstr(firstexpr <= tolerance)
+                pass
 
-        
     for i in range(alg.dim):
         m.addConstr(all_vars[0][i] == 0)
 
@@ -206,7 +265,13 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None
 
     m.optimize()
 
-    
+    # breakpoint()
+    # active_constraints = []
+    # for constr in m.getConstrs():
+    #     if abs(constr.slack) < 1e-6:
+    #         active_constraints.append(constr)
+
+    # breakpoint()
     final_Vinv = np.linalg.inv(Vs[-1])
     try:
         final_y = np.matrix([ele.X for ele in all_vars[alg.T - 1]]).T
@@ -220,3 +285,11 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None
             theta_estimate = theta_estimate/np.linalg.norm(theta_estimate)
     
     return theta_estimate
+
+#TO-DO
+#Turn Baseline 2 into Feasibility Program version
+# Step 2: Show that full-blown LP is more constrained that step 1 estimator
+# Step 3: Feasibility LP in step 1 retains guarantees from IB paper.
+# Corollary: Full LP has guarantees of IB paper.
+# Create Slack Channel
+# Investigate the active constraints

@@ -1,7 +1,7 @@
 import time
 from algorithms import UCB, LinUCB
 from alg_util import train_alg_UCB
-from estimators import Baseline1, Baseline2, estimate_linucb_means_lp, estimate_ucb_means_lp
+from estimators import Baseline1, Baseline2, estimate_linucb_means_lp, estimate_ucb_means_lp, Baseline2_LP
 import numpy as np
 from sklearn.metrics import mean_squared_error
 from oracle import Oracle
@@ -67,3 +67,15 @@ def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
         print(theta_estimate)
         print(true_means)
         print(estimate_means)
+
+def test_Baseline2_LP(theta, action_set, sigma, T=1000, timelimit=None):
+    dim = theta.shape[-1]
+    oracle = Oracle(theta, sigma=sigma)
+    alg = UCB(action_set, T=T, dim=dim)
+    train_alg_UCB(alg, T, theta, oracle)
+    
+    t1 = time.time()
+    lp_vals = normalize_subopt(Baseline2_LP(alg, timelimit=timelimit))
+    t2 = time.time()
+    return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1
+    

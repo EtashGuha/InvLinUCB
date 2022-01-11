@@ -15,12 +15,19 @@ class LinUCB():
         self.dim = dim
         self.action_idxs = []
         self.Vs = [copy.deepcopy(self.V)]
+        self.debug_y = []
+        self.debug_reward = []
+        self.debug_y.append(self.y)
+        self.debug_theta = []
+        self.debug_theta.append(np.linalg.inv(self.V) * self.y)
+
     def observe_reward(self, reward):
-        
+        self.debug_reward.append(reward)
         self.V = self.V + self.arm[self.A_t].T * self.arm[self.A_t]
         self.Vs.append(copy.deepcopy(self.V))
         self.y = self.y + self.arm[self.A_t].T * reward
-        
+        self.debug_y.append(copy.deepcopy(self.y))
+        self.debug_theta.append(copy.deepcopy(np.linalg.inv(self.V) * self.y))
         
     def compute(self):
         inv_V = np.linalg.inv(self.V)
@@ -75,6 +82,8 @@ class UCB:
         
     @staticmethod
     def gcb(T, alpha, num_samples):
+        if num_samples == 0:
+            return 2*T
         return np.sqrt(2*(math.pow(T, alpha) - 1)/(alpha * num_samples))
         
         

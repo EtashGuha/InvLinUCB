@@ -1,0 +1,11 @@
+\ Model _copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+ 
+Subject To
+ R0: u_0 - u_1 >= -0.0503499229251617
+ R1: u_0 - u_1 <= -0.0529264405538616
+Bounds
+ u_0 free
+ u_1 free
+End

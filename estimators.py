@@ -151,9 +151,9 @@ def estimate_ucb_means_lp(alg, timelimit=None):
     for t, ele in enumerate(alg.action_idxs):
         for i in range(len(alg.arm)):
             if i != ele and t >= len(alg.arm):
-                m.addConstr(all_vars[t][ele] + UCB.gcb(T, alg.alpha, num_pulls[ele][t-1]) - all_vars[t][i] - UCB.gcb(T, alg.alpha, num_pulls[i][t - 1]) >= 0)
-                if t + 1 < T:
-                    m.addConstr(all_vars[t + 1][i] - all_vars[t][i] == 0)
+                m.addConstr(all_vars[t-1][ele] + UCB.gcb(T, alg.alpha, num_pulls[ele][t-1]) - all_vars[t-1][i] - UCB.gcb(T, alg.alpha, num_pulls[i][t - 1]) >= 0)
+                if t-1 > 0:
+                    m.addConstr(all_vars[t][i] - all_vars[t - 1][i] == 0)
             m.addConstr(all_vars[t][i] >= 0)
             m.addConstr(all_vars[t][i] <= 1)
 
@@ -161,11 +161,14 @@ def estimate_ucb_means_lp(alg, timelimit=None):
         if t - 1 >= 0:
             m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] <= 1)
             m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] >= 0)
+    # m.write("debug.lp")
     m.optimize()
     lp_vals = []
+
     for i in range(len(alg.arm)):
         lp_vals.append(all_vars[T-1][i].X)
-        
+    final_solutions = {t: {i: all_vars[t][i].X for i in range(len(alg.arm))} for t in range(T)}
+    # print(lp_vals)
     return lp_vals
 
 

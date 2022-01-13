@@ -45,6 +45,10 @@ def test_UCB(theta, action_set, sigma, T=1000, timelimit=None):
     t1 = time.time()
     lp_vals = normalize_subopt(estimate_ucb_means_lp(alg, timelimit=timelimit))
     t2 = time.time()
+    # print("top")
+    # print(lp_vals)
+    # print(alg.sample_means)
+    # print(normalize_subopt(alg.sample_means))
     return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1
     
 def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):

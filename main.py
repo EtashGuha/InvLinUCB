@@ -46,7 +46,7 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
 
     Ts =  [128, 256, 512, 768, 1024]
     NumArmss = [2, 4, 8, 16, 32, 64]
-    num_epochs = 100
+    num_epochs = 10
 
     ucb_errors = {}
     linucb_errors = {}
@@ -97,7 +97,7 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
 
 
 
-    for val in tqdm(vals):
+    for val in tqdm(vals, smoothing=.05):
         final_item = val.get()
         if final_item is None:
             num_skipped += 1

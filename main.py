@@ -14,7 +14,7 @@ import argparse
 from datetime import datetime
 
 def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
-    ucb_error, ucb_time = test_UCB(theta, action_set, sigma, T=T, timelimit=timelimit)
+    ucb_error, ucb_time, is_feasible, is_other_feasible = test_UCB(theta, action_set, sigma, T=T, timelimit=timelimit)
     lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T, timelimit=timelimit)
     baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
     baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
@@ -28,7 +28,9 @@ def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
     # baseline_1_time = -1
     # baseline_2_error = -1
     # baseline_2_time = -1
-    
+    print("Top")
+    print(is_feasible)
+    print(is_other_feasible)
     return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time, baseline_2_lp_error, baseline_2_lp_time
 
 def test_battery(name, save=False):
@@ -149,6 +151,10 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
     plot(ucb_times, "UCB time", "ucb_time.png", folder_name)
     plot(baseline_1_times, "Baseline 1 time", "baseline_1_time.png", folder_name)
     plot(baseline_2_times, "Baseline 2 time", "baseline_2_time.png", folder_name)
+    plot(baseline_2_lp_errors, "Baseline 2 Error", "baseline_2_lp_error.png", folder_name)
+    plot(baseline_2_lp_times, "Baseline 2 time", "baseline_2_lp_time.png", folder_name)
+
+
 
 
 if __name__ == '__main__':

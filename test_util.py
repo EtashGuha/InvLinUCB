@@ -49,7 +49,7 @@ def test_UCB(theta, action_set, sigma, T=1000, timelimit=None):
     # print(lp_vals)
     # print(alg.sample_means)
     # print(normalize_subopt(alg.sample_means))
-    return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1
+    return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1, is_baseline_3_feasible_baseline_4(alg, lp_vals), is_baseline_3_feasible_baseline_4(alg, alg.sample_means)
     
 def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
     
@@ -83,3 +83,51 @@ def test_Baseline2_LP(theta, action_set, sigma, T=1000, timelimit=None):
     t2 = time.time()
     return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1
     
+def is_baseline_3_feasible_baseline_4(alg, lp_vals):
+    taus = [-1] * alg.arm.shape[0]
+    num_pulls = {}
+
+
+    for i in range(len(alg.arm)):
+        num_pulls[i] = []
+
+    for t in range(alg.T):
+        for key in num_pulls.keys():
+            if alg.action_idxs[t] != key:
+                if t != 0:
+                    num_pulls[key].append(num_pulls[key][ - 1])
+                else:
+                    num_pulls[key].append(0)
+            else:
+                if t != 0:
+                    num_pulls[key].append(num_pulls[key][ - 1] + 1)
+                else:
+                    num_pulls[key].append(1)
+
+    optimal_arm = None
+    most_pulls = -1
+    for i in range(len(alg.arm)):
+        if num_pulls[i][alg.T - 1] > most_pulls:
+            most_pulls = num_pulls[i][alg.T - 1] 
+            optimal_arm = i
+
+    past_arm = False
+    for t, action in reversed(list(enumerate(alg.action_idxs))):
+        if action == optimal_arm:
+            past_arm = True
+        if past_arm and taus[action] == -1:
+            taus[action] = t
+
+    values_of_constraints = []
+    for idx, tau in enumerate(taus):
+        try:
+            if idx is not optimal_arm:
+                values_of_constraints.append(lp_vals[idx] - lp_vals[optimal_arm] >= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau-1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau-1]))
+                values_of_constraints.append(lp_vals[idx] - lp_vals[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]))
+        except:
+            print(num_pulls[optimal_arm][tau-1])
+            print(num_pulls[optimal_arm][tau])
+
+            print(num_pulls[idx][tau-1])
+
+    return all(values_of_constraints)

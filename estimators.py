@@ -48,10 +48,9 @@ def Baseline2(alg):
     return np.asarray(sample_means) * -1
 
 def Baseline2_LP(alg, timelimit=None):
-    taus = [0] * alg.arm.shape[0]
+    taus = [-1] * alg.arm.shape[0]
     num_pulls = {}
-    for t, action in enumerate(alg.action_idxs):
-        taus[action] = t
+
 
     for i in range(len(alg.arm)):
         num_pulls[i] = []
@@ -75,6 +74,13 @@ def Baseline2_LP(alg, timelimit=None):
         if num_pulls[i][alg.T - 1] > most_pulls:
             most_pulls = num_pulls[i][alg.T - 1] 
             optimal_arm = i
+
+    past_arm = False
+    for t, action in reversed(list(enumerate(alg.action_idxs))):
+        if action == optimal_arm:
+            past_arm = True
+        if past_arm and taus[action] == -1:
+            taus[action] = t
 
     m = gp.Model()
     m.Params.LogToConsole = 0
@@ -169,6 +175,9 @@ def estimate_ucb_means_lp(alg, timelimit=None):
         lp_vals.append(all_vars[T-1][i].X)
     final_solutions = {t: {i: all_vars[t][i].X for i in range(len(alg.arm))} for t in range(T)}
     # print(lp_vals)
+
+    # if lp_vals.count(0) > 1:
+    #     breakpoint()
     return lp_vals
 
 

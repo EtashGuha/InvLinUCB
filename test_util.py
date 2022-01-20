@@ -41,15 +41,15 @@ def test_UCB(theta, action_set, sigma, T=1000, timelimit=None):
     oracle = Oracle(theta, sigma=sigma)
     alg = UCB(action_set, T=T, dim=dim)
     train_alg_UCB(alg, T, theta, oracle)
-    
+    original_lp_vals = estimate_ucb_means_lp(alg, timelimit=timelimit)
     t1 = time.time()
-    lp_vals = normalize_subopt(estimate_ucb_means_lp(alg, timelimit=timelimit))
+    lp_vals = normalize_subopt(original_lp_vals)
     t2 = time.time()
     # print("top")
     # print(lp_vals)
     # print(alg.sample_means)
     # print(normalize_subopt(alg.sample_means))
-    return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1, is_baseline_3_feasible_baseline_4(alg, lp_vals), is_baseline_3_feasible_baseline_4(alg, alg.sample_means)
+    return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1, is_baseline_3_feasible_baseline_4(alg, original_lp_vals), is_baseline_3_feasible_baseline_4(alg, alg.sample_means)
     
 def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
     
@@ -79,7 +79,10 @@ def test_Baseline2_LP(theta, action_set, sigma, T=1000, timelimit=None):
     train_alg_UCB(alg, T, theta, oracle)
     
     t1 = time.time()
-    lp_vals = normalize_subopt(Baseline2_LP(alg, timelimit=timelimit))
+    original_vals = Baseline2_LP(alg, timelimit=timelimit)
+    if original_vals is None:
+        return None, None
+    lp_vals = normalize_subopt(original_vals)
     t2 = time.time()
     return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1
     
@@ -113,8 +116,9 @@ def is_baseline_3_feasible_baseline_4(alg, lp_vals):
 
     past_arm = False
     for t, action in reversed(list(enumerate(alg.action_idxs))):
-        if action == optimal_arm:
+        if not past_arm and action == optimal_arm:
             past_arm = True
+            tau_bar = t
         if past_arm and taus[action] == -1:
             taus[action] = t
 
@@ -123,7 +127,7 @@ def is_baseline_3_feasible_baseline_4(alg, lp_vals):
         try:
             if idx is not optimal_arm:
                 values_of_constraints.append(lp_vals[idx] - lp_vals[optimal_arm] >= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau-1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau-1]))
-                values_of_constraints.append(lp_vals[idx] - lp_vals[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]))
+                values_of_constraints.append(lp_vals[idx] - lp_vals[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau_bar - 1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau_bar - 1]))
         except:
             print(num_pulls[optimal_arm][tau-1])
             print(num_pulls[optimal_arm][tau])

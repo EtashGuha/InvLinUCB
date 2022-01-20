@@ -19,7 +19,8 @@ def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
     baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
     baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
     baseline_2_lp_error, baseline_2_lp_time = test_Baseline2_LP(theta, action_set, sigma, T=T, timelimit=timelimit)
-    if lin_ucb_error is None:
+    print(baseline_2_lp_error)
+    if lin_ucb_error is None or baseline_2_lp_error is None:
         return None
 
     # ucb_error = -1
@@ -46,8 +47,8 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
     else:
         df = pd.read_csv("data/all.csv")
 
-    Ts =  [128, 256, 512, 768, 1024]
-    NumArmss = [2, 4, 8, 16, 32, 64]
+    Ts =  [1024, 1536, 2048]
+    NumArmss = [2,4,32,64]
     num_epochs = 10
 
     ucb_errors = {}

@@ -77,8 +77,9 @@ def Baseline2_LP(alg, timelimit=None):
 
     past_arm = False
     for t, action in reversed(list(enumerate(alg.action_idxs))):
-        if action == optimal_arm:
+        if not past_arm and action == optimal_arm:
             past_arm = True
+            tau_bar = t
         if past_arm and taus[action] == -1:
             taus[action] = t
 
@@ -94,7 +95,7 @@ def Baseline2_LP(alg, timelimit=None):
         try:
             if idx is not optimal_arm:
                 m.addConstr(all_vars[idx] - all_vars[optimal_arm] >= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau-1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau-1]))
-                m.addConstr(all_vars[idx] - all_vars[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]))
+                m.addConstr(all_vars[idx] - all_vars[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau_bar - 1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau_bar - 1]))
         except:
             breakpoint()
             print(num_pulls[optimal_arm][tau-1])
@@ -102,13 +103,18 @@ def Baseline2_LP(alg, timelimit=None):
 
             print(num_pulls[idx][tau-1])
             print(num_pulls[idx][tau])
-
+    
+    m.write("Basedline2LP.lp")
     m.optimize()
     lp_vals = []
 
     for i in range(len(alg.arm)):
-        lp_vals.append(all_vars[i].X)
+        try:
+            lp_vals.append(all_vars[i].X)
+        except:
+            return None
     
+
     return lp_vals
 
 def estimate_ucb_means_lp(alg, timelimit=None):
@@ -151,9 +157,6 @@ def estimate_ucb_means_lp(alg, timelimit=None):
     expr.addTerms([1.0] * len(list_of_all_vars), list_of_all_vars)
 
     # m.setObjective(expr, gp.GRB.MAXIMIZE)
-
-
-
     for t, ele in enumerate(alg.action_idxs):
         for i in range(len(alg.arm)):
             if i != ele and t >= len(alg.arm):
@@ -167,8 +170,15 @@ def estimate_ucb_means_lp(alg, timelimit=None):
         if t - 1 >= 0:
             m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] <= 1)
             m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] >= 0)
-    # m.write("debug.lp")
+    m.write("debug.lp")
     m.optimize()
+    
+    try:
+        m.computeIIS()
+        m.write("banana.ilp")
+        breakpoint()
+    except:
+        pass
     lp_vals = []
 
     for i in range(len(alg.arm)):

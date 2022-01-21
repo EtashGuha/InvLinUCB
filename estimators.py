@@ -1,87 +1,26 @@
 import gurobipy as gp
 import numpy as np
 from algorithms import UCB
+from estimator_util import calc_Vs, get_orthogonal_matrix, initialize_taus_np_optarm
 
 def Baseline1(alg):
     sample_means = np.random.rand(len(alg.sample_means))
     return sample_means
 
 def Baseline2(alg):
-    taus = [0] * alg.arm.shape[0]
-    num_pulls = {}
-    for t, action in enumerate(alg.action_idxs):
-        taus[action] = t
+    optimal_arm, taus, num_pulls, tau_bars = initialize_taus_np_optarm(alg)
 
-    for i in range(len(alg.arm)):
-        num_pulls[i] = []
-
-    for t in range(alg.T):
-        for key in num_pulls.keys():
-            if alg.action_idxs[t] != key:
-                if t != 0:
-                    num_pulls[key].append(num_pulls[key][ - 1])
-                else:
-                    num_pulls[key].append(0)
-            else:
-                if t != 0:
-                    num_pulls[key].append(num_pulls[key][ - 1] + 1)
-                else:
-                    num_pulls[key].append(1)
-
-    optimal_arm = None
-    most_pulls = -1
-    for i in range(len(alg.arm)):
-        if num_pulls[i][alg.T - 1] > most_pulls:
-            most_pulls = num_pulls[i][alg.T - 1] 
-            optimal_arm = i
     sample_means = []
     for idx, tau in enumerate(taus):
         if idx is not optimal_arm:
-            try:
-                sample_means.append(UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]))
-            except:
-                print(alg.action_idxs)
-                print(num_pulls)
+            sample_means.append(UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau]) - UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau]))
         else:
             sample_means.append(0)
     
     return np.asarray(sample_means) * -1
 
 def Baseline2_LP(alg, timelimit=None):
-    taus = [-1] * alg.arm.shape[0]
-    num_pulls = {}
-
-
-    for i in range(len(alg.arm)):
-        num_pulls[i] = []
-
-    for t in range(alg.T):
-        for key in num_pulls.keys():
-            if alg.action_idxs[t] != key:
-                if t != 0:
-                    num_pulls[key].append(num_pulls[key][ - 1])
-                else:
-                    num_pulls[key].append(0)
-            else:
-                if t != 0:
-                    num_pulls[key].append(num_pulls[key][ - 1] + 1)
-                else:
-                    num_pulls[key].append(1)
-
-    optimal_arm = None
-    most_pulls = -1
-    for i in range(len(alg.arm)):
-        if num_pulls[i][alg.T - 1] > most_pulls:
-            most_pulls = num_pulls[i][alg.T - 1] 
-            optimal_arm = i
-
-    past_arm = False
-    for t, action in reversed(list(enumerate(alg.action_idxs))):
-        if not past_arm and action == optimal_arm:
-            past_arm = True
-            tau_bar = t
-        if past_arm and taus[action] == -1:
-            taus[action] = t
+    optimal_arm, taus, num_pulls, tau_bars = initialize_taus_np_optarm(alg)
 
     m = gp.Model()
     m.Params.LogToConsole = 0
@@ -92,17 +31,9 @@ def Baseline2_LP(alg, timelimit=None):
         all_vars[idx] = m.addVar(name="u_{}".format(idx))
 
     for idx, tau in enumerate(taus):
-        try:
-            if idx is not optimal_arm:
-                m.addConstr(all_vars[idx] - all_vars[optimal_arm] >= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau-1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau-1]))
-                m.addConstr(all_vars[idx] - all_vars[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau_bar - 1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau_bar - 1]))
-        except:
-            breakpoint()
-            print(num_pulls[optimal_arm][tau-1])
-            print(num_pulls[optimal_arm][tau])
-
-            print(num_pulls[idx][tau-1])
-            print(num_pulls[idx][tau])
+        if idx is not optimal_arm:
+            m.addConstr(all_vars[idx] - all_vars[optimal_arm] >= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau-1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau-1]))
+            m.addConstr(all_vars[idx] - all_vars[optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau_bars[idx] - 1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau_bars[idx] - 1]))
     
     m.write("Basedline2LP.lp")
     m.optimize()
@@ -117,30 +48,19 @@ def Baseline2_LP(alg, timelimit=None):
 
     return lp_vals
 
+                
+
 def estimate_ucb_means_lp(alg, timelimit=None):
     m = gp.Model()
     m.Params.LogToConsole = 0
     if timelimit is not None:
         m.setParam('TimeLimit', timelimit)
     all_vars = {}
-    num_pulls = {}
     T = alg.T
-    for i in range(len(alg.arm)):
-        num_pulls[i] = []
+    
+    optimal_arm, taus, num_pulls, tau_bars = initialize_taus_np_optarm(alg)
 
-    for t in range(T):
-        for key in num_pulls.keys():
-            if alg.action_idxs[t] != key:
-                if t != 0:
-                    num_pulls[key].append(num_pulls[key][ - 1])
-                else:
-                    num_pulls[key].append(0)
-            else:
-                if t != 0:
-                    num_pulls[key].append(num_pulls[key][ - 1] + 1)
-                else:
-                    num_pulls[key].append(1)
-
+    
     for t in range(T):
         for idx, ele in enumerate(alg.arm):
             if t not in all_vars:
@@ -170,8 +90,16 @@ def estimate_ucb_means_lp(alg, timelimit=None):
         if t - 1 >= 0:
             m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] <= 1)
             m.addConstr(num_pulls[ele][t] * all_vars[t][ele] - num_pulls[ele][t - 1] * all_vars[t - 1][ele] >= 0)
+
+    
+    # for idx, tau in enumerate(taus):
+    #     if idx is not optimal_arm:
+    #         m.addConstr(all_vars[T-1][idx] - all_vars[T-1][optimal_arm] >= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau-1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau-1]), name="B2LP_Cons_{}_prior".format(idx))
+    #         m.addConstr(all_vars[T-1][idx] - all_vars[T-1][optimal_arm] <= UCB.gcb(alg.T, alg.alpha, num_pulls[optimal_arm][tau_bars[idx] - 1]) - UCB.gcb(alg.T, alg.alpha, num_pulls[idx][tau_bars[idx] - 1]), name="B2LP_Cons_{}_after".format(idx))
+
     m.write("debug.lp")
     m.optimize()
+    
     
     try:
         m.computeIIS()
@@ -189,24 +117,6 @@ def estimate_ucb_means_lp(alg, timelimit=None):
     # if lp_vals.count(0) > 1:
     #     breakpoint()
     return lp_vals
-
-
-def calc_Vs(alg):
-    Vs = []
-    Vs.append(alg.lamda * np.identity(alg.dim))
-    for t in range(alg.T):
-        Vs.append(Vs[-1] + (alg.actions[t].T * alg.actions[t]))
-    return(Vs)
-
-def get_orthogonal_matrix(vec):
-    first = np.identity(len(vec) - 1)
-    if vec[0].item() == 0:
-        second = -1 * vec[1:]
-    else:
-        second = -1 * vec[1:] / vec[0]
-    others = np.concatenate((second.T, first),axis=0)
-    banana = others @ (others.T @ others) @ others.T
-    return banana
 
 def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None):
     m = gp.Model()
@@ -307,11 +217,3 @@ def estimate_linucb_means_lp(alg, normalize=True, tolerance=1e-5, timelimit=None
             theta_estimate = theta_estimate/np.linalg.norm(theta_estimate)
     
     return theta_estimate
-
-#TO-DO
-#Turn Baseline 2 into Feasibility Program version
-# Step 2: Show that full-blown LP is more constrained that step 1 estimator
-# Step 3: Feasibility LP in step 1 retains guarantees from IB paper.
-# Corollary: Full LP has guarantees of IB paper.
-# Create Slack Channel
-# Investigate the active constraints

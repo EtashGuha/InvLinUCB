@@ -19,7 +19,6 @@ def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
     baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
     baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
     baseline_2_lp_error, baseline_2_lp_time = test_Baseline2_LP(theta, action_set, sigma, T=T, timelimit=timelimit)
-    print(baseline_2_lp_error)
     if lin_ucb_error is None or baseline_2_lp_error is None:
         return None
 
@@ -29,9 +28,9 @@ def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
     # baseline_1_time = -1
     # baseline_2_error = -1
     # baseline_2_time = -1
-    print("Top")
-    print(is_feasible)
-    print(is_other_feasible)
+    # print("Top")
+    # print(is_feasible)
+    # print(is_other_feasible)
     return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time, baseline_2_lp_error, baseline_2_lp_time
 
 def test_battery(name, save=False):
@@ -47,7 +46,7 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
     else:
         df = pd.read_csv("data/all.csv")
 
-    Ts =  [1024, 1536, 2048]
+    Ts =  [128,256,512,1024]
     NumArmss = [2,4,32,64]
     num_epochs = 10
 

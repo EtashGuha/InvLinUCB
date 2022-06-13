@@ -11,6 +11,7 @@ class Oracle:
     def compute_reward(self, action):
         mu = np.inner(action, self.theta)
         X = truncnorm((self.lower - mu) / self.sigma, (self.upper - mu) / self.sigma, loc=mu, scale=self.sigma)
+        print( X.rvs(1)[0])
         return X.rvs(1)[0]
 
 def calc_pseudoregret(theta, actions):

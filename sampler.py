@@ -12,8 +12,8 @@ class SyntheticSampler():
             np.random.seed(seed)
 
     def sample(self):
-        theta = np.matrix(generate_random_vec(dim = self.dim))
-        action_set = np.matrix([generate_random_vec(dim = self.dim, ord = self.ord) for _ in range(self.num_arms)])
+        theta = abs(np.matrix(generate_random_vec(dim = self.dim, mag=1)))
+        action_set = abs(np.matrix([generate_random_vec(dim = self.dim, ord = self.ord, mag=1) for _ in range(self.num_arms)]))
         return theta, action_set, self.sigma
 
 class BatterySampler():

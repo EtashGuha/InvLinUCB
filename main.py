@@ -1,5 +1,5 @@
 from dataset_util import load_battery_dataset, find_mean
-from test_util import test_Baseline1, test_Baseline2, test_LinUCB, test_UCB, test_Baseline2_LP
+from test_util import test_Baseline1, test_Baseline2, test_LinUCB, test_UCB, test_Baseline2_LP, test_LinUCB_simple
 from alg_util import generate_k_dim_vector, generate_random_vec
 import numpy as np
 from tqdm import tqdm
@@ -14,8 +14,10 @@ import argparse
 from datetime import datetime
 
 def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
-    ucb_error, ucb_time, is_feasible, is_other_feasible = test_UCB(theta, action_set, sigma, T=T, timelimit=timelimit)
+    # ucb_error, ucb_time, is_feasible, is_other_feasible = test_UCB(theta, action_set, sigma, T=T, timelimit=timelimit)
     lin_ucb_error, lin_ucb_time = test_LinUCB(theta, action_set, sigma, T=T, timelimit=timelimit)
+    # breakpoint()
+    lin_ucb_simple_error, lin_ucb_simple_time = test_LinUCB_simple(theta, action_set, sigma, T=T, timelimit=timelimit)
     baseline_1_error, baseline_1_time = test_Baseline1(theta, action_set, sigma, T=T)
     baseline_2_error, baseline_2_time = test_Baseline2(theta, action_set, sigma, T=T)
     baseline_2_lp_error, baseline_2_lp_time = test_Baseline2_LP(theta, action_set, sigma, T=T, timelimit=timelimit)
@@ -28,10 +30,7 @@ def calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit):
     # baseline_1_time = -1
     # baseline_2_error = -1
     # baseline_2_time = -1
-    # print("Top")
-    # print(is_feasible)
-    # print(is_other_feasible)
-    return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time, baseline_2_lp_error, baseline_2_lp_time
+    return T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, lin_ucb_simple_error, lin_ucb_simple_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time, baseline_2_lp_error, baseline_2_lp_time
 
 def test_battery(name, save=False):
     sampler = BatterySampler()
@@ -46,17 +45,21 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
     else:
         df = pd.read_csv("data/all.csv")
 
-    Ts =  [128,256,512,1024]
-    NumArmss = [2,4,32,64]
+    Ts =  [1000]
+    NumArmss = [2000]
     num_epochs = 10
 
     ucb_errors = {}
     linucb_errors = {}
+    linucb_simple_errors = {}
+
     baseline_1_errors = {}
     baseline_2_errors = {}
     baseline_2_lp_errors = {}
     ucb_times = {}
     linucb_times = {}
+    linucb_simple_times = {}
+
     baseline_1_times = {}
     baseline_2_times = {}
     baseline_2_lp_times = {}
@@ -69,12 +72,15 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
 
         ucb_errors[T] = {}
         linucb_errors[T] = {}
+        linucb_simple_errors[T] = {}
         baseline_1_errors[T] = {}
         baseline_2_errors[T] = {}
         baseline_2_lp_errors[T] = {}
 
         ucb_times[T] = {}
         linucb_times[T] = {}
+        linucb_simple_times[T] = {}
+
         baseline_1_times[T] = {}
         baseline_2_times[T] = {}
         baseline_2_lp_times[T] = {}
@@ -82,20 +88,22 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
         for num_arms in NumArmss:
             ucb_errors[T][num_arms] = []
             linucb_errors[T][num_arms] = []
+            linucb_simple_errors[T][num_arms] = []
             baseline_1_errors[T][num_arms] = []
             baseline_2_errors[T][num_arms] = []
             baseline_2_lp_errors[T][num_arms] = []
 
             ucb_times[T][num_arms] = []
             linucb_times[T][num_arms] = []
+            linucb_simple_times[T][num_arms] = []
             baseline_1_times[T][num_arms] = []
             baseline_2_times[T][num_arms] = []
             baseline_2_lp_times[T][num_arms] = []
             sampler = SyntheticSampler(num_arms, dim=dim, ord=ord)
             for _ in range(num_epochs):
                 theta, action_set, sigma = sampler.sample()
-                vals.append(pool.apply_async(func=calc_errors_and_times, args=(theta, action_set, T, num_arms, sigma, timelimit)))
-                # calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit)
+                # vals.append(pool.apply_async(func=calc_errors_and_times, args=(theta, action_set, T, num_arms, sigma, timelimit)))
+                calc_errors_and_times(theta, action_set, T, num_arms, sigma, timelimit)
 
 
 
@@ -104,14 +112,16 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
         if final_item is None:
             num_skipped += 1
             continue
-        T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time, baseline_2_lp_error, baseline_2_lp_time = final_item
+        T, num_arms, ucb_error, ucb_time, lin_ucb_error, lin_ucb_time, lin_ucb_simple_error, lin_ucb_simple_time, baseline_1_error, baseline_1_time, baseline_2_error, baseline_2_time, baseline_2_lp_error, baseline_2_lp_time = final_item
         linucb_errors[T][num_arms].append(lin_ucb_error)
+        linucb_simple_errors[T][num_arms].append(lin_ucb_simple_error)
         ucb_errors[T][num_arms].append(ucb_error)
         baseline_1_errors[T][num_arms].append(baseline_1_error)
         baseline_2_errors[T][num_arms].append(baseline_2_error)
         baseline_2_lp_errors[T][num_arms].append(baseline_2_lp_error)
 
         linucb_times[T][num_arms].append(lin_ucb_time)
+        linucb_simple_times[T][num_arms].append(lin_ucb_simple_time)
         ucb_times[T][num_arms].append(ucb_time)
         baseline_1_times[T][num_arms].append(baseline_1_time)
         baseline_2_times[T][num_arms].append(baseline_2_time)
@@ -126,6 +136,7 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
     data_dict["name"] = name
     data_dict["date"] = now.strftime("%m_%d_%Y_%H_%M_%S")
     data_dict["LinUCB Error"] = find_mean(linucb_errors)
+    data_dict["LinUCB Simple Error"] = find_mean(linucb_simple_errors)
     data_dict["UCB Error"] = find_mean(ucb_errors)
     data_dict["Baseline 1 Error"] = find_mean(baseline_1_errors)
     data_dict["Baseline 2 Error"] = find_mean(baseline_2_errors)
@@ -133,6 +144,7 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
 
     data_dict["Dimension"] = dim
     data_dict["LinUCB Time"] = find_mean(linucb_times)
+    data_dict["LinUCB Simple Time"] = find_mean(linucb_simple_times)
     data_dict["UCB Time"] = find_mean(ucb_times)
     data_dict["Baseline 1 Time"] = find_mean(baseline_1_times)
     data_dict["Baselien 2 Time"] = find_mean(baseline_2_times)
@@ -165,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument("--dim", type=int, help="Dimension")
     parser.add_argument("--name", type=str, help="Name of experiment")
     parser.add_argument("--timelimit", type=int, default=None, help="Name of experiment")
-    parser.add_argument("--ord", choices=['1', '2', 'inf'], help='Type of norm')
+    parser.add_argument("--ord", choices=['1', '2','5',"30", 'inf'], help='Type of norm')
     args = parser.parse_args()
     if args.sample == "synthetic":
         test_synthetic(name=args.name, dim=args.dim, ord=args.ord, timelimit=args.timelimit)

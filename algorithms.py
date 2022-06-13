@@ -23,7 +23,10 @@ class LinUCB():
 
     def observe_reward(self, reward):
         self.debug_reward.append(reward)
-        self.V = self.V + self.arm[self.A_t].T * self.arm[self.A_t]
+        outer = self.arm[self.A_t].T * self.arm[self.A_t]
+        # breakpoint()
+        # print("True: {} prev: {} lower: {}".format(min(np.linalg.eig(self.V + outer)[0]),min(np.linalg.eig(self.V)[0]), min(np.linalg.eig(outer)[0])))
+        self.V = self.V + outer
         self.Vs.append(copy.deepcopy(self.V))
         self.y = self.y + self.arm[self.A_t].T * reward
         self.debug_y.append(copy.deepcopy(self.y))
@@ -33,6 +36,7 @@ class LinUCB():
         inv_V = np.linalg.inv(self.V)
         self.hat_theta = inv_V * self.y
         ucb = self.arm * self.hat_theta + self.beta * np.matrix(np.diag(np.sqrt( self.arm * inv_V * self.arm.T ))).T
+        print(min(self.beta * np.matrix(np.diag(np.sqrt( self.arm * inv_V * self.arm.T ))).T))
         self.A_t = np.argmax(ucb)
         self.actions.append(self.arm[self.A_t])
         self.action_idxs.append(self.A_t)
@@ -43,7 +47,7 @@ class UCB:
     def __init__(self, action_set, dim=2, T=1000):
         self.arm = action_set
         self.T = T
-        self.alpha = 1/(T**2)
+        self.alpha = 1/2
         self.sample_means = np.asarray([0.0] * len(action_set))
         self.confidence_widths = np.asarray([np.inf] * len(action_set))
         self.num_pulls = np.asarray([0] * len(action_set))

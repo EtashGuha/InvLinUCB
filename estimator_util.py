@@ -20,7 +20,6 @@ def get_orthogonal_matrix(vec):
 
 def initialize_taus_np_optarm(alg):
     taus = [-1] * alg.arm.shape[0]
-    tau_bars = [-1] * alg.arm.shape[0]
     num_pulls = generate_num_pulls(alg)
 
     optimal_arm = None
@@ -38,6 +37,8 @@ def initialize_taus_np_optarm(alg):
         if tau_bar is not None and taus[action] == -1:
             taus[action] = t
             tau_bars[action] = tau_bar
+
+    taus[optimal_arm] = min([x for i,x in enumerate(tau_bars) if i!=optimal_arm])
     return optimal_arm, taus, num_pulls, tau_bars
 
 

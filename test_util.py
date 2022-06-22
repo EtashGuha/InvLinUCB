@@ -118,34 +118,19 @@ def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
 			model.addConstr(np.sum(best_vec @ best_vec) <= 1)
 			model.optimize()
 			gurobi_val = np.asarray(model.x)
+		
 			
-			theoretical_vec = eigenvectors @ copy_vec
-			simply_positive_vec = eigenvectors @ abs(linear_solution)
+			picked_ci = alg.beta * np.sqrt(np.diag(alg.actions[t] @ np.linalg.inv(alg.Vs[t]) @ alg.actions[t].T))
+			picked_mu = alg.actions[t] @ alg.debug_theta[t]
+			picked_ucb = picked_mu + picked_ci
+			as_picked = A_inv @ alg.actions[t]
 
-			positive_copy_vec = copy.deepcopy(linear_solution)
-			for blah_idx in range(alg.dim):
-				positive_copy_vec[blah_idx] = abs(linear_solution)[np.where(coef_rankings == ucb_rankings[blah_idx])]
+			as_gurobi = A_inv @ gurobi_val
 
-			positive_swapped_vec = eigenvectors @ positive_copy_vec
-
-			positive_swapped_vec_value =  alg.debug_theta[t].T @ positive_copy_vec + alg.beta * np.sqrt(np.diag(positive_copy_vec.T @ np.linalg.inv(alg.Vs[t]) @ positive_copy_vec))
-			positive_value =  alg.debug_theta[t].T @ simply_positive_vec + alg.beta * np.sqrt(np.diag(simply_positive_vec.T @ np.linalg.inv(alg.Vs[t]) @ simply_positive_vec))
-			better_value = alg.debug_theta[t].T @ theoretical_vec + alg.beta * np.sqrt(np.diag(theoretical_vec.T @ np.linalg.inv(alg.Vs[t]) @ theoretical_vec))
-
-			other_estimated_mean = 0
-			for idx in range(copy_vec.shape[0]):
-				other_estimated_mean += copy_vec[idx] * alg.debug_theta[t].T @ eigenvectors[:, idx]
-
-			if (better_value > picked_value and abs(better_value - picked_value) > 1e-5).all() or (positive_value > picked_value and abs(positive_value - picked_value) > 1e-5).all():
-				better_value *= 1
-			else:
-				print("Breaking Time: {}".format(t))
-				other_ci = alg.beta * np.sqrt(np.diag(theoretical_vec.T @ np.linalg.inv(alg.Vs[t]) @ theoretical_vec))
-				picked_ci = alg.beta * np.sqrt(np.diag(alg.actions[t] @ np.linalg.inv(alg.Vs[t]) @ alg.actions[t].T))
-				print(picked_ci - other_ci)
-
-				other_ucb = theoretical_vec.T @ alg.debug_theta[t] + other_ci
-				picked_ucb = alg.actions[t] @ alg.debug_theta[t] + picked_ci
+			def calc_final_val(vec):
+				return alg.debug_theta[t] @ vec + alg.beta * np.sqrt(np.diag(vec.T @ np.linalg.inv(alg.Vs[t]) @ vec))
+			as
+				picked_ucb = + picked_ci
 				curr_A_inv = np.linalg.inv(eigenvectors)
 
 				as_gurobi = np.asarray(curr_A_inv @ gurobi_val)

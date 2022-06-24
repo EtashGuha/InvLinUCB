@@ -11,6 +11,7 @@ from scipy.stats import rankdata
 from operator import add
 import cvxpy as cp
 import gurobipy as gp
+import math
 
 def normalize_subopt(means):
 	means = np.asarray(means)
@@ -67,84 +68,62 @@ def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
 	t1 = time.time()
 	true_means = normalize_subopt(action_set @ alg.hat_theta)
 
-	eigenvalues, eigenvectors = np.linalg.eig(alg.Vs[-1])
+	# eigenvalues, eigenvectors = np.linalg.eig(alg.Vs[-1])
 
-	A_inv = np.linalg.inv(eigenvectors)
+	# A_inv = np.asarray(np.linalg.inv(eigenvectors))
 	worst_arms = []
 	all_ucb_values = []
 
 	for t in range(alg.T - 1):
-		ucb_values = []
-
-		#JUST CHECKING
-		# eigenvalues, eigenvectors = np.linalg.eigh(alg.Vs[t])
-		for idx, e_l in enumerate(eigenvalues):
-			mu = alg.debug_theta[t].T @ eigenvectors[:, idx]
-			if mu < 0:
-				eigenvectors[:, idx] = -1 * eigenvectors[:, idx]
-				eigenvalues[idx] = -1 * eigenvalues[idx]
-
-			
-		A_inv = np.linalg.inv(eigenvectors)
-
-
-		linear_solution = A_inv @ alg.actions[t].T
-		for idx, e_l in enumerate(eigenvalues):
-			ucb_l = alg.debug_theta[t].T @ eigenvectors[:, idx] + alg.beta * np.diag(np.sqrt(eigenvectors[:, idx].T @ np.linalg.inv(alg.Vs[t]) @ eigenvectors[:, idx]))
-			ucb_values.append(ucb_l.item())
-		picked_value = alg.debug_theta[t].T @ alg.actions[t].T + alg.beta * np.sqrt(np.diag(alg.actions[t] @ np.linalg.inv(alg.Vs[t]) @ alg.actions[t].T))
-
-		estimated_mean = 0
-		for idx in range(linear_solution.shape[0]):
-			estimated_mean += linear_solution[idx] * alg.debug_theta[t].T @ eigenvectors[:, idx]
+		
+		curr_eigenvalues, curr_eigenvectors = np.linalg.eigh(alg.Vs[t])
+		def calc_final_val(as_vals):
+			weightings =np.squeeze(np.asarray(curr_eigenvectors @  np.squeeze(np.asarray(as_vals))))
+			reward = alg.debug_theta[t].T @ weightings 
+			ci = alg.beta * np.sqrt(weightings @ np.linalg.inv(alg.Vs[t]) @ weightings)
+			return reward + ci, reward, ci
+		A_inv = np.linalg.inv(curr_eigenvectors)
 
 		
+		model = gp.Model()
+		best_vec = model.addMVar(alg.actions[t].shape[1])
+		ci_vec = model.addMVar(1)
+		model.params.LogToConsole = 0
 
-		all_ucb_values.append(ucb_values)
-		coef_rankings  = rankdata(linear_solution, method="ordinal")
+		model.params.NonConvex = 2
+		model.params.FeasibilityTol = 1e-9
+		model.setObjective(alg.debug_theta[t].T @ best_vec + ci_vec * alg.beta, gp.GRB.MAXIMIZE)
+		model.addConstr(ci_vec @ ci_vec == best_vec @ np.linalg.inv(alg.Vs[t]) @ best_vec)
+		model.addConstr(np.sum(best_vec @ best_vec) <= 1)
+		model.optimize()
+		
+		gurobi_val = np.asarray(best_vec.x)
+		if not np.isclose(best_vec.X @ np.linalg.inv(alg.Vs[t]) @ best_vec.X,ci_vec.X @ ci_vec.X):
+			breakpoint()
+		as_gurobi = np.squeeze(np.asarray(A_inv @ gurobi_val))
+
+
+		eigen_ci = np.squeeze(np.asarray(alg.beta * np.diag(np.sqrt(curr_eigenvectors.T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors))))
+		eigen_mu = np.squeeze(np.asarray(curr_eigenvectors.T @ alg.debug_theta[t]))
+
+
+
+		ucb_values = eigen_ci + abs(eigen_mu)
+
+
+		coef_rankings  = rankdata(abs(as_gurobi), method="ordinal")
 		ucb_rankings = rankdata(ucb_values, method="ordinal")
+
 		
-		import copy
-		if not (coef_rankings == ucb_rankings).all():
-			copy_vec = copy.deepcopy(linear_solution)
-			for blah_idx in range(alg.dim):
-				copy_vec[blah_idx] = linear_solution[np.where(coef_rankings == ucb_rankings[blah_idx])]
-			import gurobipy as gp
-
-			model = gp.Model()
-			best_vec = model.addMVar(copy_vec.shape[0])
-			model.params.NonConvex = 2
-			model.setObjective(alg.debug_theta[t].T @ best_vec +  best_vec @ np.linalg.inv(alg.Vs[t]) @ best_vec * alg.beta, gp.GRB.MAXIMIZE)
-			model.addConstr(np.sum(best_vec @ best_vec) <= 1)
-			model.optimize()
-			gurobi_val = np.asarray(model.x)
+		if len(np.unique(np.round(curr_eigenvalues, decimals = 7))) == 4:
+			if abs(np.sum(eigen_mu * as_gurobi) +  alg.beta * np.sqrt(np.sum(np.square(as_gurobi)/curr_eigenvalues)) - model.ObjVal) > 1e-5:
+				breakpoint()
+		# assert(np.square(as_gurobi)[0] * curr_eigenvectors[:, 0].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 0] + np.square(as_gurobi)[1] * curr_eigenvectors[:, 1].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 1] + np.square(as_gurobi)[2] * curr_eigenvectors[:, 2].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 2] + np.square(as_gurobi)[3] * curr_eigenvectors[:, 3].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 3])
 		
-			
-			picked_ci = alg.beta * np.sqrt(np.diag(alg.actions[t] @ np.linalg.inv(alg.Vs[t]) @ alg.actions[t].T))
-			picked_mu = alg.actions[t] @ alg.debug_theta[t]
-			picked_ucb = picked_mu + picked_ci
-			as_picked = A_inv @ alg.actions[t]
-
-			as_gurobi = A_inv @ gurobi_val
-
-			def calc_final_val(vec):
-				return alg.debug_theta[t] @ vec + alg.beta * np.sqrt(np.diag(vec.T @ np.linalg.inv(alg.Vs[t]) @ vec))
-			as
-				picked_ucb = + picked_ci
-				curr_A_inv = np.linalg.inv(eigenvectors)
-
-				as_gurobi = np.asarray(curr_A_inv @ gurobi_val)
-
-				eigen_ci = alg.beta * np.diag(np.sqrt(eigenvectors.T @ np.linalg.inv(alg.Vs[t]) @ eigenvectors))
-				eigen_mu = eigenvectors.T @ alg.debug_theta[t]
-				
-				as_theoretical = np.squeeze(np.asarray(curr_A_inv @ theoretical_vec))
-				as_picked = np.squeeze(np.asarray(curr_A_inv @ alg.actions[t].T))
-				theoretical_inside = np.divide(np.square(as_theoretical), eigenvalues)
-				picked_inside = np.divide(np.square(as_picked), eigenvalues)
-
-				assert((abs(eigenvectors[:, 0] * as_theoretical[0] + eigenvectors[:, 1] * as_theoretical[1] + eigenvectors[:, 2] * as_theoretical[2] + eigenvectors[:, 3] * as_theoretical[3] - theoretical_vec) < 1e-5).all())
-
+		assert((abs(np.squeeze(curr_eigenvectors[:, 0] * as_gurobi[0] + curr_eigenvectors[:, 1] * as_gurobi[1] + curr_eigenvectors[:, 2] * as_gurobi[2] + curr_eigenvectors[:, 3] * as_gurobi[3]) - gurobi_val) < 1e-5).all())
+		if len(np.unique(np.round(curr_eigenvalues, decimals = 7))) == 4 and not (coef_rankings == ucb_rankings).all():
+			print(t)
+			if t > 500:
 				breakpoint()
 		
 		worst_arms.append(np.argmin(ucb_values))

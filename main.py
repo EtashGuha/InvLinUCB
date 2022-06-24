@@ -45,7 +45,7 @@ def test_synthetic(name, dim, ord, timelimit=None, save=False):
     else:
         df = pd.read_csv("data/all.csv")
 
-    Ts =  [1000]
+    Ts =  [10000]
     NumArmss = [2000]
     num_epochs = 10
 

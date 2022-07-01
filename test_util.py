@@ -12,7 +12,7 @@ from operator import add
 import cvxpy as cp
 import gurobipy as gp
 import math
-
+import matplotlib.pyplot as plt
 def normalize_subopt(means):
 	means = np.asarray(means)
 	best_value = max(means)
@@ -58,7 +58,6 @@ def test_UCB(theta, action_set, sigma, T=1000, timelimit=None):
 	return mean_squared_error(normalize_subopt(alg.sample_means), lp_vals), t2 - t1, is_baseline_3_feasible_baseline_4(alg, original_lp_vals), is_baseline_3_feasible_baseline_4(alg, alg.sample_means)
 	
 def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
-	
 	oracle = Oracle(theta, sigma=sigma)
 	dim = theta.shape[-1]
 	alg = LinUCB(action_set, dim=dim, T=T)
@@ -73,9 +72,16 @@ def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
 	# A_inv = np.asarray(np.linalg.inv(eigenvectors))
 	worst_arms = []
 	all_ucb_values = []
-
+	list_of_discrepancies = []
+	ts = []
+	as_gurobis = []
+	ucb_rankings_list = []
+	coef_kinks = []
+	ucb_kinks = []
+	coef_kink_vals = []
+	ucb_kink_vals = []
+	all_ucb_vals = []
 	for t in range(alg.T - 1):
-		
 		curr_eigenvalues, curr_eigenvectors = np.linalg.eigh(alg.Vs[t])
 		def calc_final_val(as_vals):
 			weightings =np.squeeze(np.asarray(curr_eigenvectors @  np.squeeze(np.asarray(as_vals))))
@@ -98,8 +104,8 @@ def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
 		model.optimize()
 		
 		gurobi_val = np.asarray(best_vec.x)
-		if not np.isclose(best_vec.X @ np.linalg.inv(alg.Vs[t]) @ best_vec.X,ci_vec.X @ ci_vec.X):
-			breakpoint()
+		# if not np.isclose(best_vec.X @ np.linalg.inv(alg.Vs[t]) @ best_vec.X,ci_vec.X @ ci_vec.X):
+		# 	breakpoint()
 		as_gurobi = np.squeeze(np.asarray(A_inv @ gurobi_val))
 
 
@@ -113,21 +119,125 @@ def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
 
 		coef_rankings  = rankdata(abs(as_gurobi), method="ordinal")
 		ucb_rankings = rankdata(ucb_values, method="ordinal")
+		
+		if t > 0:
+			if (coef_rankings != prev_coef_rankings).any():
+				coef_kinks.append(t)
+				coef_kink_vals.append(coef_rankings)
+			if (ucb_rankings != prev_ucb_rankings).any():
+				ucb_kinks.append(t)
+				ucb_kink_vals.append(ucb_rankings)
+			
+			all_ucb_vals.append(ucb_rankings)
 
+		if len(coef_kink_vals) > 0 and not (coef_rankings == coef_kink_vals[-1]).all():
+			breakpoint()
+		# if t > 4 and (coef_kink_vals[-1] == coef_kink_vals[-3]).all() and (coef_kink_vals[-2] == coef_kink_vals[-4]).all():
+		# 	coef_kink_vals = coef_kink_vals[:-2]
+		# 	coef_kinks = coef_kinks[:-2]
+		# if t > 4 and (ucb_kink_vals[-1] == ucb_kink_vals[-3]).all() and (ucb_kink_vals[-2] == ucb_kink_vals[-4]).all():
+		# 	ucb_kink_vals = ucb_kink_vals[:-2]
+		# 	ucb_kinks = ucb_kinks[:-2]
 		
-		if len(np.unique(np.round(curr_eigenvalues, decimals = 7))) == 4:
-			if abs(np.sum(eigen_mu * as_gurobi) +  alg.beta * np.sqrt(np.sum(np.square(as_gurobi)/curr_eigenvalues)) - model.ObjVal) > 1e-5:
+		prev_coef_rankings = coef_rankings
+		
+		prev_ucb_rankings = ucb_rankings
+		
+		as_gurobis.append(as_gurobi)
+		ucb_rankings_list.append(ucb_values)
+	
+	ucb_pointer = 0
+	min_coef_pointer = 0
+	mappings = []
+	while ucb_pointer < len(ucb_kink_vals):
+		coef_pointer = min_coef_pointer 
+		set_val = False
+		while coef_pointer < len(coef_kink_vals):
+			if (coef_kink_vals[coef_pointer] == ucb_kink_vals[ucb_pointer]).all() and ucb_kinks[ucb_pointer - 1] < coef_kinks[coef_pointer]:
+				mappings.append(coef_kinks[coef_pointer])
+				min_coef_pointer = coef_pointer
+				set_val = True
+				break
+			coef_pointer += 1
+		if not set_val:
+			mappings.append(None)
+		ucb_pointer += 1
+		
+	reverse_mappings = []
+	ucb_pointer = len(ucb_kink_vals) - 1
+	coef_pointer = len(coef_kink_vals) - 1
+	max_ucb_pointer = len(ucb_kink_vals) - 1
+	while coef_pointer > -1:
+		ucb_pointer = max_ucb_pointer 
+		set_val = False
+		while ucb_pointer > -1:
+
+			if (coef_kink_vals[coef_pointer] == ucb_kink_vals[ucb_pointer]).all() and (coef_pointer == len(coef_kink_vals) - 1 or coef_kinks[coef_pointer + 1] > ucb_kinks[ucb_pointer]):
+				reverse_mappings.append(ucb_kinks[ucb_pointer])
+				max_ucb_pointer = ucb_pointer
+				set_val = True
+				break
+			ucb_pointer -= 1
+		if not set_val:
+			reverse_mappings.append(None)
+		coef_pointer -= 1
+	reverse_mappings.reverse()
+
+
+
+	bad_mappings = []
+	for idx, mapping in enumerate(mappings):
+		if mapping is None:
+			try:
+				if idx > 0  and idx < len(mappings) - 1 and (mappings[idx - 1] != mappings[idx + 1] or mappings[idx + 1] is None):
+					bad_mappings.append(idx)
+			except:
 				breakpoint()
-		# assert(np.square(as_gurobi)[0] * curr_eigenvectors[:, 0].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 0] + np.square(as_gurobi)[1] * curr_eigenvectors[:, 1].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 1] + np.square(as_gurobi)[2] * curr_eigenvectors[:, 2].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 2] + np.square(as_gurobi)[3] * curr_eigenvectors[:, 3].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 3])
+
+	
+	bad_mappings_r = []
+	for idx, mapping in enumerate(reverse_mappings):
+		if mapping is None:
+			if idx > 0  and idx < len(reverse_mappings) - 1 and (reverse_mappings[idx - 1] != reverse_mappings[idx + 1] or reverse_mappings[idx + 1] is None):
+				bad_mappings_r.append(idx)
+	breakpoint()
+	breakpoint()
+	def get_cmap(n, name='hsv'):
+		'''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+		RGB color; the keyword argument name must be a standard mpl colormap name.'''
+		return plt.cm.get_cmap(name, n)
+	dimension = 4
+	as_gurobis = np.asarray(as_gurobis) * alg.beta
+	ucb_rankings_list = np.asarray(ucb_rankings_list)
+	cmap = get_cmap(dimension * 2)
+	
+	for dim in range(dimension):
 		
-		assert((abs(np.squeeze(curr_eigenvectors[:, 0] * as_gurobi[0] + curr_eigenvectors[:, 1] * as_gurobi[1] + curr_eigenvectors[:, 2] * as_gurobi[2] + curr_eigenvectors[:, 3] * as_gurobi[3]) - gurobi_val) < 1e-5).all())
-		if len(np.unique(np.round(curr_eigenvalues, decimals = 7))) == 4 and not (coef_rankings == ucb_rankings).all():
-			print(t)
-			if t > 500:
-				breakpoint()
+		plt.plot(list(range(alg.T - 1)),abs(as_gurobis[:, dim]), label="Alpha_{}".format(dim), color=cmap(2 * dim + 1))
+		plt.plot(list(range(alg.T - 1)),ucb_rankings_list[:, dim], '--', label="UCB_{}".format(dim), color=cmap(2 * dim + 2))
 		
-		worst_arms.append(np.argmin(ucb_values))
-	import matplotlib.pyplot as plt
+	plt.xlabel("Times")
+	plt.ylabel("Discrepancies")
+	plt.legend()
+
+	plt.savefig("effort.png")
+	breakpoint()
+					# if abs(true_ucb_val - swapped_ucb_val) > .05:
+					# 	breakpoint()
+		
+		# if len(np.unique(np.round(curr_eigenvalues, decimals = 7))) == 4:
+		# 	if abs(np.sum(eigen_mu * as_gurobi) +  alg.beta * np.sqrt(np.sum(np.square(as_gurobi)/curr_eigenvalues)) - model.ObjVal) > 1e-5:
+		# 		breakpoint()
+		# # assert(np.square(as_gurobi)[0] * curr_eigenvectors[:, 0].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 0] + np.square(as_gurobi)[1] * curr_eigenvectors[:, 1].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 1] + np.square(as_gurobi)[2] * curr_eigenvectors[:, 2].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 2] + np.square(as_gurobi)[3] * curr_eigenvectors[:, 3].T @ np.linalg.inv(alg.Vs[t]) @ curr_eigenvectors[:, 3])
+		
+		# assert((abs(np.squeeze(curr_eigenvectors[:, 0] * as_gurobi[0] + curr_eigenvectors[:, 1] * as_gurobi[1] + curr_eigenvectors[:, 2] * as_gurobi[2] + curr_eigenvectors[:, 3] * as_gurobi[3]) - gurobi_val) < 1e-5).all())
+		# if len(np.unique(np.round(curr_eigenvalues, decimals = 7))) == 4 and not (coef_rankings == ucb_rankings).all():
+		# 	print(t)
+		# 	if t > 500:
+		# 		breakpoint()
+		
+		# worst_arms.append(np.argmin(ucb_values))
+	
 	all_ucb_values = np.asarray(all_ucb_values)
 	breakpoint()
 	for i in range(all_ucb_values.shape[1]):
@@ -173,7 +283,7 @@ def test_LinUCB(theta, action_set, sigma, T=1000, timelimit=None):
 		actual_val = np.dot(alg.hat_theta.T, eigenvectors[:, i])
 		breakpoint()
 		
-	
+
 	projection_vals = np.asarray(projection_vals)
 	for i in range(theta.shape[0]):
 		plt.plot(list(range(alg.T - 1)), projection_vals[:, i], label=i)
